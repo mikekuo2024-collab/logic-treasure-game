@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>邏輯工廠尋寶記 · 基本邏輯電路互動遊戲</title>
+<style>
+:root{
+  --navy:#141a2e; --navy2:#22305c; --accent:#1e6fbf; --amber:#f5a623;
+  --ok:#1f9d55; --no:#c0392b; --line:#dde3ef; --bg:#0e1526; --mut:#5b6878;
+  --card:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;
+  background:var(--bg); color:#1f2733; line-height:1.7; min-height:100vh;
+}
+/* ---------- 共用 ---------- */
+button{font-family:inherit;font-weight:700;border:none;border-radius:26px;
+  padding:12px 30px;font-size:1rem;cursor:pointer;transition:.15s;}
+.btn-main{background:var(--amber);color:#3a2400;box-shadow:0 4px 14px rgba(245,166,35,.4);}
+.btn-main:hover{transform:translateY(-2px);}
+.btn-sub{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);}
+.btn-sub.small{padding:7px 16px;font-size:.85rem;}
+.btn-blue{background:var(--accent);color:#fff;}
+.btn-blue:hover{background:#155a9c;}
+.btn-ghost{background:#eef1f7;color:#33455c;}
+.hidden{display:none !important;}
+/* ---------- 開始畫面 ---------- */
+#screen-start{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:30px 18px;
+  background:radial-gradient(circle at 30% 20%, #22305c 0%, #0e1526 65%);color:#fff;}
+#screen-start .logo{font-size:3.2rem;}
+#screen-start h1{font-size:2rem;font-weight:800;margin:10px 0 4px;letter-spacing:2px;}
+#screen-start .sub{color:#9fb4d8;font-size:1rem;margin-bottom:22px;}
+.rulebox{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);
+  border-radius:16px;padding:20px 26px;max-width:560px;text-align:left;font-size:.95rem;
+  color:#dbe6f7;margin-bottom:24px;}
+.rulebox b{color:var(--amber);}
+.rulebox li{margin:6px 0 6px 4px;list-style:none;}
+#nameInput{font-family:inherit;font-size:1rem;padding:11px 18px;border-radius:26px;
+  border:2px solid var(--amber);width:min(300px,80vw);text-align:center;margin-bottom:16px;outline:none;}
+/* 續玩卡片 */
+.resume-card{background:rgba(245,166,35,.12);border:1.5px solid var(--amber);
+  border-radius:16px;padding:18px 24px;max-width:560px;margin-bottom:22px;color:#ffe9c4;font-size:.95rem;}
+.resume-card b{color:var(--amber);}
+.resume-card .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+.saved-note{font-size:.82rem;color:#9fb4d8;margin-top:14px;}
+/* 已存檔車手清單 */
+.players{max-width:560px;margin-top:10px;}
+.players .ptitle{font-size:.85rem;color:#9fb4d8;margin-bottom:6px;}
+.pchip{display:inline-block;margin:4px;padding:7px 14px;border-radius:18px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.25);color:#dbe6f7;font-size:.85rem;cursor:pointer;transition:.15s;}
+.pchip:hover{border-color:var(--amber);color:#ffd479;}
+.pchip b{color:var(--amber);}
+/* ---------- 地圖畫面 ---------- */
+#screen-map{min-height:100vh;padding-bottom:40px;
+  background:linear-gradient(180deg,#16203d 0%, #1b2a52 50%, #233a6e 100%);}
+.topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;
+  align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;
+  background:rgba(14,21,38,.92);backdrop-filter:blur(4px);
+  border-bottom:1px solid rgba(255,255,255,.12);color:#fff;}
+.topbar .title{font-weight:800;font-size:1.02rem;}
+.topbar .timer{font-weight:800;font-size:1.12rem;color:var(--amber);font-variant-numeric:tabular-nums;}
+.topbar .timer.warn{color:#ff6b5e;animation:blink 1s infinite;}
+.topbar .grp{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+@keyframes blink{50%{opacity:.4;}}
+.frag-tray{display:flex;gap:6px;align-items:center;}
+.frag{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:.95rem;background:rgba(255,255,255,.1);
+  border:1.5px dashed rgba(255,255,255,.35);color:rgba(255,255,255,.35);}
+.frag.got{background:var(--amber);color:#3a2400;border:1.5px solid #ffd479;
+  box-shadow:0 0 10px rgba(245,166,35,.6);}
+#map{position:relative;max-width:960px;margin:18px auto 0;padding:10px 14px 30px;}
+#map svg.road{width:100%;height:auto;display:block;}
+.station{position:absolute;width:150px;transform:translate(-50%,-50%);text-align:center;cursor:pointer;
+  transition:.2s;}
+.station .icon{width:74px;height:74px;margin:0 auto;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:2rem;background:#fff;border:4px solid var(--accent);
+  box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.station .lbl{margin-top:7px;font-size:.83rem;font-weight:700;color:#fff;
+  background:rgba(14,21,38,.8);border-radius:10px;padding:3px 8px;display:inline-block;}
+.station:hover .icon{transform:scale(1.08);}
+.station.locked{cursor:not-allowed;filter:grayscale(1);opacity:.55;}
+.station.locked .icon{border-color:#666;}
+.station.done .icon{border-color:var(--ok);background:#e9f9ef;}
+.station.done .lbl::after{content:" ✔";color:#7ee2a8;}
+.station.next .icon{animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,.7);}50%{box-shadow:0 0 0 16px rgba(245,166,35,0);}}
+.station.chest .icon{border-color:var(--amber);font-size:2.2rem;}
+.hint-banner{max-width:960px;margin:6px auto 0;padding:0 18px;color:#c9d8f2;font-size:.92rem;text-align:center;}
+/* ---------- 關卡視窗 ---------- */
+#modal{position:fixed;inset:0;background:rgba(8,12,24,.75);z-index:50;display:flex;
+  align-items:center;justify-content:center;padding:14px;}
+.panel{background:var(--card);width:min(680px,96vw);max-height:92vh;overflow-y:auto;
+  border-radius:18px;padding:24px 26px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.panel h2{font-size:1.25rem;color:var(--navy);display:flex;align-items:center;gap:8px;}
+.panel .desc{color:var(--mut);font-size:.92rem;margin:6px 0 14px;}
+.progress-dots{display:flex;gap:6px;margin-bottom:14px;}
+.pdot{width:12px;height:12px;border-radius:50%;background:#dde3ef;}
+.pdot.cur{background:var(--amber);}
+.pdot.ok{background:var(--ok);}
+.stem{font-weight:700;font-size:1.05rem;margin-bottom:12px;}
+.stem .tag{font-size:.72rem;background:#fdecea;color:var(--no);border-radius:10px;padding:2px 8px;margin-left:6px;white-space:nowrap;}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border:1.5px solid #e6eaf4;
+  border-radius:11px;margin:7px 0;cursor:pointer;transition:.15s;font-size:.97rem;}
+.opt:hover{background:#f4f8ff;border-color:#bcd5f2;}
+.opt.correct{background:#e9f9ef;border-color:#57c07f;}
+.opt.wrong{background:#fdecea;border-color:#e78679;animation:shake .3s;}
+.opt.dim{opacity:.5;pointer-events:none;}
+@keyframes shake{25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+.exp{margin-top:12px;padding:11px 14px;background:#f2f7ff;border-left:4px solid var(--accent);
+  border-radius:8px;font-size:.92rem;color:#33455c;}
+.feedback{margin-top:10px;font-weight:700;}
+.feedback.ok{color:var(--ok);} .feedback.no{color:var(--no);}
+.panel .actions{margin-top:16px;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
+/* 配對遊戲 */
+.match-grid{display:grid;grid-template-columns:1fr 1.6fr;gap:8px;}
+.mitem{padding:9px 12px;border-radius:10px;border:1.5px solid #e6eaf4;cursor:pointer;
+  font-size:.88rem;transition:.15s;background:#fff;}
+.mitem.term{font-weight:700;color:var(--navy2);}
+.mitem:hover{border-color:#bcd5f2;background:#f4f8ff;}
+.mitem.sel{border-color:var(--amber);background:#fff7e8;box-shadow:0 0 0 2px rgba(245,166,35,.35);}
+.mitem.okpair{background:#e9f9ef;border-color:#57c07f;pointer-events:none;color:#25603d;}
+.mitem.flash{background:#fdecea;border-color:#e78679;animation:shake .3s;}
+/* 密碼與寶箱 */
+.code-input{font-family:inherit;font-size:1.4rem;letter-spacing:8px;text-align:center;
+  padding:10px 14px;border:2px solid var(--accent);border-radius:12px;width:230px;
+  text-transform:uppercase;outline:none;}
+.chest-art{font-size:4rem;text-align:center;margin:10px 0;}
+/* 進度檢視 */
+.pv-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:.9rem;color:#33455c;margin-bottom:12px;}
+.pv-meta b{color:var(--navy2);}
+.pv-stations{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.pv-st{font-size:.82rem;padding:5px 12px;border-radius:14px;border:1.5px solid var(--line);color:var(--mut);}
+.pv-st.done{background:#e9f9ef;border-color:#57c07f;color:#25603d;font-weight:700;}
+.pv-st.cur{background:#fff7e8;border-color:var(--amber);color:#8a5a00;font-weight:700;}
+/* ---------- 報告畫面 ---------- */
+#screen-report{min-height:100vh;background:#f4f6fb;padding:0 0 60px;}
+.report-hero{background:linear-gradient(135deg,#141a2e,#22305c 55%,#1e6fbf);color:#fff;
+  padding:34px 20px 30px;text-align:center;}
+.report-hero h1{font-size:1.6rem;font-weight:800;}
+.report-hero .medal{font-size:3rem;margin:6px 0;}
+.report-hero .big{font-size:2.6rem;font-weight:800;color:var(--amber);}
+.report-hero .meta{color:#c9d8f2;font-size:.92rem;margin-top:6px;}
+.rwrap{max-width:820px;margin:0 auto;padding:24px 18px;}
+.rcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;
+  margin-bottom:18px;box-shadow:0 2px 8px rgba(30,40,80,.05);}
+.rcard h2{font-size:1.1rem;color:var(--navy2);margin-bottom:12px;border-left:5px solid var(--amber);
+  padding-left:10px;}
+.bar-row{display:flex;align-items:center;gap:10px;margin:9px 0;font-size:.92rem;}
+.bar-row .bl{flex:0 0 110px;font-weight:700;color:#33455c;}
+.bar-track{flex:1;height:16px;background:#eef1f7;border-radius:9px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:9px;background:linear-gradient(90deg,#1e6fbf,#4da3e8);
+  transition:width .8s;}
+.bar-fill.low{background:linear-gradient(90deg,#c0392b,#e67e6c);}
+.bar-fill.mid{background:linear-gradient(90deg,#f5a623,#ffd479);}
+.bar-row .bv{flex:0 0 88px;text-align:right;font-weight:700;color:var(--navy2);font-variant-numeric:tabular-nums;}
+.wrongitem{border-left:4px solid var(--no);background:#fff7f6;border-radius:8px;
+  padding:10px 14px;margin:8px 0;font-size:.9rem;}
+.wrongitem b{color:var(--no);}
+.wrongitem .we{color:#33455c;margin-top:4px;font-size:.87rem;}
+.advice{border-left:4px solid var(--accent);background:#f2f7ff;border-radius:8px;
+  padding:12px 14px;margin:10px 0;font-size:.93rem;color:#28405e;}
+.advice b{color:var(--accent);}
+.advice a{color:var(--accent);}
+.nextstep{display:flex;gap:10px;align-items:flex-start;margin:10px 0;font-size:.93rem;}
+.nextstep .n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--amber);
+  color:#3a2400;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:.85rem;}
+.report-actions{text-align:center;margin-top:8px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+@media print{
+  body{background:#fff;}
+  .report-actions,.topbar{display:none !important;}
+  .report-hero{background:#22305c !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .rcard{box-shadow:none;break-inside:avoid;}
+  #screen-report{padding-bottom:0;}
+}
+@media(max-width:640px){
+  .station{width:104px;}
+  .station .icon{width:56px;height:56px;font-size:1.5rem;border-width:3px;}
+  .station .lbl{font-size:.7rem;}
+  .match-grid{grid-template-columns:1fr 1.35fr;}
+  .bar-row .bl{flex-basis:86px;font-size:.82rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ 開始畫面 ═══════════ -->
+<div id="screen-start">
+  <div class="logo">🚗🔧</div>
+  <h1>邏輯工廠尋寶記</h1>
+  <div class="sub">汽車科技發展教材 · 第 8 章 基本邏輯電路 · 互動學習遊戲</div>
+  <div class="rulebox" id="ruleBox">
+    <li>🏭 <b>任務：</b>傳說邏輯工廠深處藏著「數位邏輯大師」寶藏，工廠裡有 5 個工作站，各由一位老師傅把守。</li>
+    <li>🧩 <b>玩法：</b>依序通過 5 個工作站的挑戰，每過一站可獲得一枚<b>寶物碎片（字母）</b>；集滿 5 枚拼出通關密語，就能開啟寶箱！</li>
+    <li>⏱️ <b>時限：</b>20 分鐘。答錯可以再試，但<b>第一次就答對</b>分數最高。</li>
+    <li>💾 <b>自動存檔：</b>進度會以你的<b>車手代號</b>儲存在這台電腦的瀏覽器中，<b>隨時可以離開</b>；下次打開網頁，輸入同一個代號就能無縫接關。</li>
+    <li>📊 <b>結局：</b>破關後產生你的<b>學習歷程分析報告</b>與下一步學習建議，之後輸入代號隨時可回來查看。</li>
+  </div>
+  <div id="newGameBox">
+    <input id="nameInput" type="text" maxlength="12" placeholder="輸入你的車手代號"><br>
+    <button class="btn-main" onclick="enter()">🔑 進入邏輯工廠</button>
+  </div>
+  <div id="resumeBox"></div>
+  <div id="playersBox"></div>
+  <div class="saved-note">💾 進度只存在這台裝置的瀏覽器（localStorage），不會上傳；同一台電腦、同一個代號即可接關。</div>
+</div>
+
+<!-- ═══════════ 地圖畫面 ═══════════ -->
+<div id="screen-map" class="hidden">
+  <div class="topbar">
+    <span class="title">🏭 邏輯工廠地圖</span>
+    <div class="frag-tray" id="fragTray"></div>
+    <div class="grp">
+      <span class="timer" id="timer">20:00</span>
+      <button class="btn-sub small" onclick="showProgress()">📊 我的進度</button>
+      <button class="btn-sub small" onclick="quitGame()">💾 儲存並離開</button>
+    </div>
+  </div>
+  <div class="hint-banner" id="hintBanner">點擊發亮的工作站開始挑戰！</div>
+  <div id="map">
+    <svg class="road" viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2a3c6e"/><stop offset="1" stop-color="#1c2a52"/>
+        </linearGradient>
+      </defs>
+      <rect x="8" y="8" width="944" height="544" rx="26" fill="url(#floor)" stroke="#3d5490" stroke-width="3"/>
+      <path d="M 130 460 C 220 380 180 260 300 220 C 400 190 420 330 520 330 C 640 330 640 190 740 160 C 800 143 840 190 830 250 C 818 320 740 380 790 460"
+        fill="none" stroke="#0e1526" stroke-width="34" stroke-linecap="round"/>
+      <path d="M 130 460 C 220 380 180 260 300 220 C 400 190 420 330 520 330 C 640 330 640 190 740 160 C 800 143 840 190 830 250 C 818 320 740 380 790 460"
+        fill="none" stroke="#f5a623" stroke-width="3" stroke-dasharray="14 12" stroke-linecap="round"/>
+      <text x="40" y="52" font-size="22" fill="#8fa8d8">⚙️</text>
+      <text x="900" y="530" font-size="22" fill="#8fa8d8">🔩</text>
+      <text x="60" y="530" font-size="20" fill="#8fa8d8">🛞</text>
+      <text x="890" y="60" font-size="20" fill="#8fa8d8">🔌</text>
+    </svg>
+    <div class="station" id="st0" style="left:13.5%;top:82%"><div class="icon">🚪</div><div class="lbl">① 檢修接待區<br>基本概念</div></div>
+    <div class="station" id="st1" style="left:31%;top:39%"><div class="icon">💡</div><div class="lbl">② 邏輯閘工作站<br>七大邏輯閘</div></div>
+    <div class="station" id="st2" style="left:54%;top:59%"><div class="icon">📦</div><div class="lbl">③ 零件倉庫<br>專有名詞配對</div></div>
+    <div class="station" id="st3" style="left:77%;top:28%"><div class="icon">🔬</div><div class="lbl">④ IC 檢測室<br>TTL／CMOS</div></div>
+    <div class="station" id="st4" style="left:86.5%;top:45%"><div class="icon">🚙</div><div class="lbl">⑤ 車輛應用實驗室<br>汽車上的邏輯</div></div>
+    <div class="station chest" id="stChest" style="left:82%;top:82%"><div class="icon">🧰</div><div class="lbl">寶箱<br>輸入通關密語</div></div>
+  </div>
+</div>
+
+<!-- ═══════════ 關卡視窗 ═══════════ -->
+<div id="modal" class="hidden"><div class="panel" id="panel"></div></div>
+
+<!-- ═══════════ 報告畫面 ═══════════ -->
+<div id="screen-report" class="hidden"></div>
+
+<script>
+/* ══════════════ 題庫（取自本專案 50 題學習評量與專有名詞深度報告） ══════════════ */
+const STATIONS=[
+ {name:"檢修接待區",icon:"🚪",area:"基本概念",letter:"L",
+  desc:"老師傅：想進工廠，先證明你懂數位電路的語言！",type:"quiz",qs:[
+  {stem:"數位電路中通常以英文字母「H」來表示什麼？",opts:["高電位（邏輯1）","低電位（邏輯0）","接地","交流電源"],ans:0,
+   exp:"數位電路只有高、低兩種電壓準位，一般以「H」表示高電位、「L」表示低電位。"},
+  {stem:"以「1」表示高電位、「0」表示低電位的表示方式，稱為？",opts:["正邏輯","負邏輯","混合邏輯","類比邏輯"],ans:0,
+   exp:"以1代表高電位、0代表低電位者稱為正邏輯；反之為負邏輯。課本皆採正邏輯。"},
+  {stem:"布林代數（Boolean Algebra）中，變數只有哪兩個值？",opts:["0 與 1","1 與 2","-1 與 1","真、假與不定共三值"],ans:0,
+   exp:"布林代數是只有 0（假）與 1（真）兩個值的數學系統，是數位電路的基礎。"},
+  {stem:"將布林代數應用到繼電器與交換電路，使它變成電路設計工具的關鍵人物是？",opts:["喬治·布爾","香農（Claude Shannon）","卡諾（Karnaugh）","笛摩根（De Morgan）"],ans:1,
+   exp:"1937 年香農把布林代數用在繼電器與交換電路；布爾是布林代數之父、卡諾發明卡諾圖。"}]},
+ {name:"邏輯閘工作站",icon:"💡",area:"邏輯閘原理",letter:"O",
+  desc:"老師傅：七種邏輯閘是工廠的心臟，答對才能拿到第二枚碎片！",type:"quiz",qs:[
+  {stem:"反相閘（NOT gate）的邏輯運算式為？",opts:["Y = A + B","Y = A·B","Y = Ā","Y = A⊕B"],ans:2,
+   exp:"反相閘只有一輸入一輸出，作用為變更邏輯準位，運算式為 Y=Ā。"},
+  {stem:"二輸入及閘（AND），輸入 A=1、B=0 時，輸出 Y =？",opts:["0","1","高阻抗","不一定"],ans:0,
+   exp:"及閘須全部輸入為 1 輸出才為 1；只要有一輸入為 0，輸出即為 0。"},
+  {stem:"二輸入或閘（OR），輸入 A=0、B=0 時，輸出 Y =？",opts:["1","0","由 A 決定","高阻抗"],ans:1,
+   exp:"或閘只要有一輸入為 1 輸出即為 1；全部為 0 時輸出才為 0。"},
+  {stem:"互斥或閘（XOR）的運算特性為？",opts:["輸入有奇數個 1 則輸出 1","輸入有偶數個 1 則輸出 1","全部為 1 才輸出 1","全部為 0 才輸出 1"],ans:0,
+   exp:"XOR：輸入中有奇數個高準位（1）時輸出為 1，偶數個 1 則輸出 0。"},
+  {stem:"某邏輯閘「只有在輸入全為 0 時，輸出才為 1」，此為何種閘？",adv:true,opts:["NAND","XOR","XNOR","NOR"],ans:3,
+   exp:"反或閘 NOR：全 0 輸出 1，只要有一輸入為 1 輸出即為 0。"}]},
+ {name:"零件倉庫",icon:"📦",area:"專有名詞",letter:"G",
+  desc:"老師傅：倉庫裡的標籤全掉了！把每個專有名詞和正確的說明配對起來。",type:"match",pairs:[
+  ["邏輯閘 Logic Gate","執行 AND、OR、NOT 等基本邏輯運算的數位電路基本單元"],
+  ["布林代數 Boolean Algebra","只有 0 與 1 兩個值的數學系統，數位電路設計的理論基礎"],
+  ["TTL 數位 IC","以電晶體－電晶體構成、工作電壓 +5V 的數位 IC 家族（74 系列）"],
+  ["車身電腦模組 BCM","讀取開關與感測器訊號，經邏輯運算後控制車身電器的電腦"],
+  ["防鎖死煞車系統 ABS","緊急煞車時反覆「洩壓→保壓→增壓」，防止車輪鎖死並維持轉向"],
+  ["CAN bus","以雙絞線差動訊號讓車上各電腦互相通訊的網路，由 Bosch 開發"],
+  ["X-By-Wire 線控技術","以電子訊號與致動器取代機械連桿，概念源自航空線傳飛控"]]},
+ {name:"IC 檢測室",icon:"🔬",area:"數位IC",letter:"I",
+  desc:"老師傅：修車不能不認識 IC 編號與規格，通過檢測就給你第四枚碎片！",type:"quiz",qs:[
+  {stem:"常用反相閘（NOT）的 TTL IC 編號為？",opts:["7400","7404","7408","7432"],ans:1,
+   exp:"7404 為反相閘、7408 為及閘、7400 為反及閘、7432 為或閘。"},
+  {stem:"常用及閘（AND）的 TTL IC 編號為？",opts:["7408","7402","7486","7404"],ans:0,
+   exp:"7408 為及閘；7402 為反或閘、7486 為互斥或閘、7404 為反相閘。"},
+  {stem:"TTL IC 7486 為下列何種邏輯閘？",opts:["反及閘 NAND","反或閘 NOR","互斥或閘 XOR","反相閘 NOT"],ans:2,
+   exp:"7486 為互斥或閘（XOR）。"},
+  {stem:"TTL 數位 IC 的工作電壓 Vcc 通常為？",opts:["+3V","+5V","+12V","+18V"],ans:1,
+   exp:"TTL 數位 IC 工作電壓 Vcc 通常為 +5V。"},
+  {stem:"TTL 的 SN54 系列與 SN74 系列，主要差異為？",adv:true,opts:["邏輯功能不同","工作溫度與電源電壓範圍不同","接腳數不同","製造國家不同"],ans:1,
+   exp:"同編號功能相同；SN54（軍用）溫度與電壓範圍較寬，SN74（工業用）較窄。"}]},
+ {name:"車輛應用實驗室",icon:"🚙",area:"汽車應用",letter:"C",
+  desc:"老師傅：最後一站！看看你能不能把邏輯閘用到真正的汽車上。",type:"quiz",qs:[
+  {stem:"「引擎溢油時切斷噴油控制」須同時滿足多個條件才動作，主要應用哪種邏輯閘觀念？",opts:["或閘 OR","及閘 AND","反相閘 NOT","互斥或閘 XOR"],ans:1,
+   exp:"須同時滿足點火啟動、轉速低、節流閥全開、冷卻液低溫等多條件（AND）才切斷噴油。"},
+  {stem:"「各別開關自我診斷」——任一開關在使用狀態，監視燈即亮，應用何種邏輯閘觀念？",opts:["及閘 AND","或閘 OR","反及閘 NAND","反相閘 NOT"],ans:1,
+   exp:"只要任一開關被使用監視燈就亮，屬於「或」（OR）的邏輯關係。"},
+  {stem:"「未繫安全帶警告」中，安全帶「沒繫」時才觸發警示，對應哪種布林運算？",opts:["AND（乘法）","OR（加法）","NOT（反相／補數）","XOR（互斥）"],ans:2,
+   exp:"「沒繫」是對「繫上」狀態取反，屬於 NOT（補數）運算。"},
+  {stem:"以開關電路而言，及閘（AND）相當於兩開關的何種接法？",opts:["串聯","並聯","短路","斷路"],ans:0,
+   exp:"AND 相當於開關串聯：A 與 B 須同時閉合（ON）LED 才會亮。"},
+  {stem:"以開關電路而言，或閘（OR）相當於兩開關的何種接法？",opts:["串聯","並聯","交叉","斷路"],ans:1,
+   exp:"OR 相當於開關並聯：任一開關閉合（ON）LED 即亮。"}]}
+];
+const BOSS={stem:"守箱人最後一問：某邏輯閘「只有在輸入全為 1 時，輸出才為 0」，此為何種閘？",
+  opts:["NAND 反及閘","NOR 反或閘","XOR 互斥或閘","AND 及閘"],ans:0,area:"綜合挑戰",
+  exp:"反及閘 NAND：全 1 輸出 0，其餘輸入組合輸出皆為 1。它也是可以組成所有邏輯功能的「萬用閘」。"};
+const CODE="LOGIC";
+const TIME_LIMIT=20*60; // 秒
+const EXPECTED_ITEMS=4+5+7+5+5+1; // 27 項挑戰
+const AREAS=["基本概念","邏輯閘原理","專有名詞","數位IC","汽車應用","綜合挑戰"];
+const SAVE_PREFIX="尋寶遊戲_基本邏輯電路_v3::";   // 每位車手代號一個存檔
+
+/* ══════════════ 遊戲狀態與本機存檔（以車手代號為鍵） ══════════════ */
+function freshState(){return {name:"",timeLeft:TIME_LIMIT,stationIdx:0,frags:[],answers:[],
+  finished:false,timedOut:false,bossReached:false,curSave:null,savedAt:null};}
+let S=freshState();
+let timerId=null;
+let curName="";   // 目前輸入的車手代號
+
+function keyFor(name){return SAVE_PREFIX+name;}
+function saveState(){
+  S.savedAt=new Date().toISOString();
+  try{localStorage.setItem(keyFor(S.name),JSON.stringify(S));}catch(e){/* 私密模式等情況忽略 */}
+}
+function loadState(name){
+  try{const raw=localStorage.getItem(keyFor(name)); return raw?JSON.parse(raw):null;}
+  catch(e){return null;}
+}
+function clearSave(name){try{localStorage.removeItem(keyFor(name));}catch(e){}}
+function listSaves(){
+  const out=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.indexOf(SAVE_PREFIX)===0){
+        try{const sv=JSON.parse(localStorage.getItem(k)); if(sv&&sv.name) out.push(sv);}catch(e){}
+      }
+    }
+  }catch(e){}
+  return out.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||""));
+}
+function migrateOld(){ // 舊版單一存檔 → 依代號搬移
+  try{
+    const old=localStorage.getItem("尋寶遊戲_基本邏輯電路_v2");
+    if(old){const sv=JSON.parse(old);
+      if(sv&&sv.name&&!localStorage.getItem(keyFor(sv.name))) localStorage.setItem(keyFor(sv.name),old);
+      localStorage.removeItem("尋寶遊戲_基本邏輯電路_v2");}
+  }catch(e){}
+}
+
+function $(id){return document.getElementById(id);}
+
+/* ══════════════ 入口網頁：輸入代號 → 找存檔 ══════════════ */
+function init(){
+  migrateOld();
+  $("resumeBox").innerHTML="";
+  $("nameInput").value=curName||"";
+  const saves=listSaves();
+  $("playersBox").innerHTML = saves.length ?
+    '<div class="players"><div class="ptitle">💾 這台電腦上已有存檔的車手（點代號快速進入）：</div>'+
+    saves.map(sv=>`<span class="pchip" onclick="quickEnter(this.dataset.n)" data-n="${sv.name.replace(/"/g,"&quot;")}">
+      <b>${sv.name}</b>｜${sv.finished?"已完成 🏁":"進度 "+sv.stationIdx+"/5 站"}</span>`).join("")+"</div>" : "";
+}
+function quickEnter(name){ $("nameInput").value=name; enter(); }
+function enter(){
+  const name=$("nameInput").value.trim();
+  if(!name){ alert("請先輸入你的車手代號！"); $("nameInput").focus(); return; }
+  curName=name;
+  const sv=loadState(name);
+  if(!sv){            // 新車手 → 直接開新遊戲
+    S=freshState(); S.name=name; saveState(); enterMap(); return;
+  }
+  const box=$("resumeBox");
+  const when=sv.savedAt?new Date(sv.savedAt).toLocaleString("zh-TW"):"—";
+  if(sv.finished){
+    box.innerHTML=`<div class="resume-card">
+      🏁 找到 <b>${sv.name}</b> 的紀錄（${when}）：已完成挑戰！<br>可以回顧你的學習分析報告，或重新挑戰刷新紀錄。
+      <div class="row">
+        <button class="btn-main" onclick="viewSavedReport()">📋 查看學習報告</button>
+        <button class="btn-sub" onclick="restartNew()">🔄 重新挑戰</button>
+      </div></div>`;
+  }else{
+    const m=Math.floor(sv.timeLeft/60),s=String(sv.timeLeft%60).padStart(2,"0");
+    box.innerHTML=`<div class="resume-card">
+      💾 找到 <b>${sv.name}</b> 的存檔（${when}）：已通過 <b>${sv.stationIdx}／5</b> 站、
+      收集 <b>${sv.frags.length}</b> 枚碎片、剩餘時間 <b>${m}:${s}</b>。
+      <div class="row">
+        <button class="btn-main" onclick="resumeGame()">▶️ 繼續遊戲（無縫接關）</button>
+        <button class="btn-sub" onclick="viewProgressFromStart()">📊 查看目前進度</button>
+        <button class="btn-sub" onclick="restartNew()">🗑️ 放棄存檔重新開始</button>
+      </div></div>`;
+  }
+  box.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function restartNew(){
+  if(!confirm("確定要刪除「"+curName+"」的存檔並重新開始嗎？")) return;
+  clearSave(curName);
+  S=freshState(); S.name=curName; saveState();
+  $("screen-report").classList.add("hidden");
+  enterMap();
+}
+function resumeGame(){
+  const sv=loadState(curName); if(!sv) return;
+  S=Object.assign(freshState(),sv);
+  if(S.timeLeft<=0){endGame(true); return;}
+  enterMap();
+}
+function viewSavedReport(){
+  const sv=loadState(curName); if(!sv) return;
+  S=Object.assign(freshState(),sv);
+  renderReport(S.timedOut);
+}
+function viewProgressFromStart(){
+  const sv=loadState(curName); if(!sv) return;
+  S=Object.assign(freshState(),sv);
+  $("modal").classList.remove("hidden");
+  renderProgressPanel(true);
+}
+
+/* ══════════════ 地圖與計時 ══════════════ */
+function enterMap(){
+  $("screen-start").classList.add("hidden");
+  $("screen-report").classList.add("hidden");
+  $("screen-map").classList.remove("hidden");
+  renderFrags(); renderMap(); updateTimerText();
+  clearInterval(timerId);
+  timerId=setInterval(tick,1000);
+}
+function updateTimerText(){
+  const m=String(Math.floor(Math.max(S.timeLeft,0)/60)).padStart(2,"0"),
+        s=String(Math.max(S.timeLeft,0)%60).padStart(2,"0");
+  const t=$("timer"); t.textContent=`${m}:${s}`;
+  if(S.timeLeft<=180) t.classList.add("warn");
+}
+function tick(){
+  S.timeLeft--;
+  updateTimerText();
+  if(S.timeLeft%5===0) saveState();      // 每 5 秒自動存檔
+  if(S.timeLeft<=0){clearInterval(timerId); endGame(true);}
+}
+function renderFrags(){
+  $("fragTray").innerHTML=STATIONS.map(st=>
+    `<div class="frag ${S.frags.includes(st.letter)?"got":""}">${S.frags.includes(st.letter)?st.letter:"?"}</div>`).join("");
+}
+function renderMap(){
+  STATIONS.forEach((st,i)=>{
+    const el=$("st"+i);
+    el.className="station"+(i<S.stationIdx?" done":i===S.stationIdx?" next":" locked");
+    el.onclick=()=>{ if(i===S.stationIdx) openStation(i); else if(i>S.stationIdx) toast("先完成前面的工作站！"); };
+  });
+  const chest=$("stChest");
+  chest.className="station chest"+(S.stationIdx>=STATIONS.length?" next":" locked");
+  chest.onclick=()=>{ if(S.stationIdx>=STATIONS.length) openChest(); else toast("要先集滿 5 枚寶物碎片！"); };
+  let hint;
+  if(S.stationIdx>=STATIONS.length) hint="🎉 碎片集滿了！點擊寶箱，輸入通關密語！";
+  else{
+    const st=STATIONS[S.stationIdx];
+    const resume=S.curSave&&S.curSave.i===S.stationIdx;
+    hint=`下一站：${st.icon} ${st.name}${resume?"（上次進行到一半，點擊接續挑戰）":"（點擊發亮的工作站）"}`;
+  }
+  $("hintBanner").textContent=hint;
+}
+function toast(msg){
+  const b=$("hintBanner");
+  b.textContent="⚠️ "+msg; b.style.color="#ffb3a8";
+  setTimeout(()=>{b.style.color=""; renderMap();},1500);
+}
+function quitGame(){
+  saveState();
+  clearInterval(timerId);
+  $("screen-map").classList.add("hidden");
+  $("modal").classList.add("hidden");
+  $("screen-start").classList.remove("hidden");
+  init();      // 回到入口網頁
+  enter();     // 立即顯示此代號的續玩卡片，確認進度已儲存
+}
+
+/* ══════════════ 測驗關卡 ══════════════ */
+let cur={};
+function openStation(i){
+  const st=STATIONS[i];
+  const saved=(S.curSave&&S.curSave.i===i)?S.curSave:null;
+  if(st.type==="quiz"){
+    cur={st,qi:saved?saved.qi:0,attempts:0};
+    if(!saved) S.curSave={i,qi:0};
+    $("modal").classList.remove("hidden");
+    renderQuiz();
+  }else{
+    cur={st,matched:saved&&saved.matched?[...saved.matched]:[],matchAttempts:{}};
+    if(!saved) S.curSave={i,matched:[]};
+    $("modal").classList.remove("hidden");
+    renderMatch();
+  }
+  saveState();
+}
+function dots(n,curI,okArr){
+  let h='<div class="progress-dots">';
+  for(let k=0;k<n;k++) h+=`<div class="pdot ${okArr[k]?"ok":k===curI?"cur":""}"></div>`;
+  return h+"</div>";
+}
+function renderQuiz(){
+  const st=cur.st,q=st.qs[cur.qi];
+  cur.attempts=0;
+  const okArr=st.qs.map((_,k)=>k<cur.qi);
+  $("panel").innerHTML=`
+    <h2>${st.icon} ${st.name}</h2><div class="desc">${st.desc}</div>
+    ${dots(st.qs.length,cur.qi,okArr)}
+    <div class="stem">第 ${cur.qi+1}／${st.qs.length} 題　${q.stem}${q.adv?'<span class="tag">★進階</span>':""}</div>
+    <div id="opts">${q.opts.map((o,k)=>`<div class="opt" data-k="${k}" onclick="pick(${k})">（${"ABCD"[k]}）${o}</div>`).join("")}</div>
+    <div id="fb"></div>
+    <div class="actions"><button class="btn-ghost" onclick="pauseToMap()">💾 暫停回地圖</button></div>`;
+}
+function pauseToMap(){ saveState(); $("modal").classList.add("hidden"); renderMap(); }
+function pick(k){
+  const st=cur.st,q=st.qs[cur.qi];
+  const opts=[...document.querySelectorAll("#opts .opt")];
+  if(k===q.ans){
+    opts.forEach(o=>{o.classList.add("dim"); if(+o.dataset.k===q.ans){o.classList.remove("dim");o.classList.add("correct");}});
+    S.answers.push({area:st.area,stem:q.stem,firstTry:cur.attempts===0,exp:q.exp});
+    S.curSave={i:S.stationIdx,qi:cur.qi+1};
+    saveState();
+    $("fb").innerHTML=`<div class="feedback ok">${cur.attempts===0?"✔ 一次答對，漂亮！":"✔ 答對了（再接再厲，下次一次命中）"}</div>
+      <div class="exp">💡 ${q.exp}</div>
+      <div class="actions"><button class="btn-blue" onclick="nextQ()">${cur.qi<st.qs.length-1?"下一題 ▶":"領取寶物碎片 🏆"}</button></div>`;
+  }else{
+    cur.attempts++;
+    opts[k].classList.add("wrong");
+    setTimeout(()=>opts[k].classList.remove("wrong"),450);
+    $("fb").innerHTML=`<div class="feedback no">✘ 不對喔，再想一想！（提示：先回想真值表）</div>`;
+  }
+}
+function nextQ(){
+  if(cur.qi<cur.st.qs.length-1){cur.qi++; renderQuiz();}
+  else stationClear();
+}
+
+/* ══════════════ 配對關卡 ══════════════ */
+let mSel=null,mLeft=0;
+function renderMatch(){
+  const st=cur.st;
+  const defs=st.pairs.map((p,i)=>({t:p[1],i})).sort(()=>Math.random()-.5);
+  mSel=null;
+  $("panel").innerHTML=`
+    <h2>${st.icon} ${st.name}</h2><div class="desc">${st.desc}<br>先點左邊的<b>名詞</b>，再點右邊對應的<b>說明</b>。</div>
+    <div class="match-grid">
+      <div>${st.pairs.map((p,i)=>`<div class="mitem term" id="t${i}" onclick="mPick('t',${i})">${p[0]}</div>`).join("")}</div>
+      <div>${defs.map(d=>`<div class="mitem" id="d${d.i}" onclick="mPick('d',${d.i})">${d.t}</div>`).join("")}</div>
+    </div><div id="fb"></div>
+    <div class="actions"><button class="btn-ghost" onclick="pauseToMap()">💾 暫停回地圖</button></div>`;
+  // 還原已配對成功的項目
+  cur.matched.forEach(i=>{$("t"+i).classList.add("okpair"); $("d"+i).classList.add("okpair");});
+  mLeft=st.pairs.length-cur.matched.length;
+  if(mLeft===0) $("fb").innerHTML='<div class="actions"><button class="btn-blue" onclick="stationClear()">領取寶物碎片 🏆</button></div>';
+}
+function mPick(kind,i){
+  if(kind==="t"){
+    if(mSel!==null) $("t"+mSel).classList.remove("sel");
+    mSel=i; $("t"+i).classList.add("sel"); return;
+  }
+  if(mSel===null){ $("fb").innerHTML='<div class="feedback no">先點選左邊的名詞！</div>'; return; }
+  cur.matchAttempts[mSel]=cur.matchAttempts[mSel]||0;
+  if(i===mSel){
+    $("t"+mSel).classList.remove("sel");
+    $("t"+mSel).classList.add("okpair"); $("d"+i).classList.add("okpair");
+    S.answers.push({area:cur.st.area,stem:"配對：「"+cur.st.pairs[mSel][0]+"」",firstTry:cur.matchAttempts[mSel]===0,
+      exp:cur.st.pairs[mSel][0]+"＝"+cur.st.pairs[mSel][1]});
+    cur.matched.push(mSel);
+    S.curSave={i:S.stationIdx,matched:[...cur.matched]};
+    saveState();
+    mSel=null; mLeft--;
+    $("fb").innerHTML='<div class="feedback ok">✔ 配對正確！</div>';
+    if(mLeft===0) $("fb").innerHTML+='<div class="actions"><button class="btn-blue" onclick="stationClear()">領取寶物碎片 🏆</button></div>';
+  }else{
+    cur.matchAttempts[mSel]++;
+    $("d"+i).classList.add("flash"); setTimeout(()=>$("d"+i).classList.remove("flash"),450);
+    $("fb").innerHTML='<div class="feedback no">✘ 這不是它的說明，再試一次！</div>';
+  }
+}
+
+/* ══════════════ 過站與寶箱 ══════════════ */
+function stationClear(){
+  const st=cur.st;
+  S.frags.push(st.letter);
+  S.stationIdx++;
+  S.curSave=null;
+  saveState();
+  $("panel").innerHTML=`
+    <h2>🏆 通過「${st.name}」！</h2>
+    <div class="chest-art">✨ ${st.letter} ✨</div>
+    <p style="text-align:center">你獲得了寶物碎片 <b style="font-size:1.3rem;color:var(--amber)">「${st.letter}」</b>！
+    （已收集 ${S.frags.length}／${STATIONS.length} 枚）</p>
+    <div class="actions"><button class="btn-blue" onclick="closeModal()">回到工廠地圖 🗺️</button></div>`;
+  renderFrags();
+}
+function closeModal(){ $("modal").classList.add("hidden"); renderMap(); }
+function openChest(){
+  $("modal").classList.remove("hidden");
+  if(S.bossReached){ renderBoss(); return; }
+  $("panel").innerHTML=`
+    <h2>🧰 神秘寶箱</h2>
+    <div class="chest-art">🧰🔒</div>
+    <p style="text-align:center">把 5 枚碎片依收集順序排好，輸入通關密語：</p>
+    <p style="text-align:center;margin:12px 0"><input class="code-input" id="codeIn" maxlength="5" placeholder="?????"></p>
+    <div id="fb"></div>
+    <div class="actions">
+      <button class="btn-ghost" onclick="pauseToMap()">💾 暫停回地圖</button>
+      <button class="btn-blue" onclick="tryCode()">開鎖 🔑</button></div>`;
+  $("codeIn").focus();
+  $("codeIn").addEventListener("keydown",e=>{if(e.key==="Enter")tryCode();});
+}
+function tryCode(){
+  const v=$("codeIn").value.trim().toUpperCase();
+  if(v===CODE){ S.bossReached=true; saveState(); renderBoss(); }
+  else $("fb").innerHTML='<div class="feedback no" style="text-align:center">✘ 密語不對！看看上方碎片列的字母順序。</div>';
+}
+function renderBoss(){
+  cur={attempts:0};
+  $("panel").innerHTML=`
+    <h2>🗝️ 守箱人的最後考驗</h2>
+    <div class="desc">答對這一題，寶藏就是你的！</div>
+    <div class="stem">${BOSS.stem}<span class="tag">★最終挑戰</span></div>
+    <div id="opts">${BOSS.opts.map((o,k)=>`<div class="opt" data-k="${k}" onclick="bossPick(${k})">（${"ABCD"[k]}）${o}</div>`).join("")}</div>
+    <div id="fb"></div>
+    <div class="actions"><button class="btn-ghost" onclick="pauseToMap()">💾 暫停回地圖</button></div>`;
+}
+function bossPick(k){
+  const opts=[...document.querySelectorAll("#opts .opt")];
+  if(k===BOSS.ans){
+    opts.forEach(o=>{o.classList.add("dim"); if(+o.dataset.k===BOSS.ans){o.classList.remove("dim");o.classList.add("correct");}});
+    S.answers.push({area:BOSS.area,stem:BOSS.stem,firstTry:cur.attempts===0,exp:BOSS.exp});
+    saveState();
+    $("fb").innerHTML=`<div class="feedback ok">✔ 正確！寶箱打開了！</div><div class="exp">💡 ${BOSS.exp}</div>
+      <div class="actions"><button class="btn-main" onclick="endGame(false)">打開寶箱 🎁</button></div>`;
+  }else{
+    cur.attempts++;
+    opts[k].classList.add("wrong"); setTimeout(()=>opts[k].classList.remove("wrong"),450);
+    $("fb").innerHTML='<div class="feedback no">✘ 守箱人搖搖頭……再想想「全 1 輸出 0」是哪個閘？</div>';
+  }
+}
+
+/* ══════════════ 統計工具 ══════════════ */
+function areaStats(){
+  const stat={};
+  AREAS.forEach(a=>stat[a]={total:0,first:0});
+  S.answers.forEach(r=>{stat[r.area].total++; if(r.firstTry)stat[r.area].first++;});
+  return stat;
+}
+function buildBars(stat){
+  let bars="";
+  AREAS.forEach(a=>{
+    const st=stat[a];
+    if(st.total===0){
+      bars+=`<div class="bar-row"><span class="bl">${a}</span><div class="bar-track"><div class="bar-fill low" style="width:0%"></div></div><span class="bv">未挑戰</span></div>`;
+      return;}
+    const pct=Math.round(100*st.first/st.total);
+    const cls=pct>=80?"":pct>=60?"mid":"low";
+    bars+=`<div class="bar-row"><span class="bl">${a}</span><div class="bar-track"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div><span class="bv">${pct}%（${st.first}/${st.total}）</span></div>`;
+  });
+  return bars;
+}
+
+/* ══════════════ 隨時查看進度 ══════════════ */
+function showProgress(){
+  $("modal").classList.remove("hidden");
+  renderProgressPanel(false);
+}
+function renderProgressPanel(fromStart){
+  const stat=areaStats();
+  const used=TIME_LIMIT-S.timeLeft, mm=Math.floor(used/60), ss=String(used%60).padStart(2,"0");
+  const firstAll=S.answers.filter(r=>r.firstTry).length;
+  const rate=S.answers.length?Math.round(100*firstAll/S.answers.length):0;
+  const stTags=STATIONS.map((st,i)=>{
+    const cls=i<S.stationIdx?"done":i===S.stationIdx?"cur":"";
+    const mark=i<S.stationIdx?"✔ ":i===S.stationIdx?"▶ ":"🔒 ";
+    return `<span class="pv-st ${cls}">${mark}${st.icon} ${st.name}</span>`;}).join("");
+  const wrongs=S.answers.filter(r=>!r.firstTry);
+  $("panel").innerHTML=`
+    <h2>📊 ${S.name} 的學習進度</h2>
+    <div class="pv-meta">
+      <span>⏱️ 已用時間 <b>${mm} 分 ${ss} 秒</b></span>
+      <span>🧩 碎片 <b>${S.frags.length}／5</b></span>
+      <span>✅ 完成挑戰 <b>${S.answers.length}／${EXPECTED_ITEMS}</b> 項</span>
+      <span>🎯 一次答對率 <b>${rate}%</b></span>
+    </div>
+    <div class="pv-stations">${stTags}</div>
+    ${buildBars(stat)}
+    <p style="font-size:.8rem;color:var(--mut);margin-top:6px">藍＝精熟（≥80%）　橘＝尚可（60–79%）　紅＝待加強（&lt;60%）；進度已自動儲存於本機。</p>
+    ${wrongs.length?`<p style="font-size:.88rem;margin-top:8px">📝 目前有 <b>${wrongs.length}</b> 題第一次沒答對，破關後報告會附完整解析。</p>`:""}
+    <div class="actions">
+      ${fromStart?'<button class="btn-ghost" onclick="backToStart()">返回</button><button class="btn-blue" onclick="resumeGame(); closeModal()">▶️ 繼續遊戲</button>'
+                 :'<button class="btn-blue" onclick="closeModal()">回到遊戲 ▶</button>'}
+    </div>`;
+}
+function backToStart(){ $("modal").classList.add("hidden"); }
+
+/* ══════════════ 結算報告 ══════════════ */
+function endGame(timeout){
+  clearInterval(timerId);
+  S.finished=true; S.timedOut=!!timeout; S.curSave=null;
+  saveState();
+  renderReport(timeout);
+}
+function renderReport(timeout){
+  $("modal").classList.add("hidden");
+  $("screen-map").classList.add("hidden");
+  $("screen-start").classList.add("hidden");
+  const used=TIME_LIMIT-S.timeLeft;
+  const mm=Math.floor(used/60),ss=used%60;
+  const stat=areaStats();
+  const totalItems=S.answers.length;
+  const firstAll=S.answers.filter(r=>r.firstTry).length;
+  const score=Math.round(100*(firstAll+0.5*(totalItems-firstAll))/EXPECTED_ITEMS);
+  const medal=score>=90?["🥇","金牌邏輯技師"]:score>=75?["🥈","銀牌邏輯技師"]:score>=60?["🥉","銅牌邏輯技師"]:["🔧","見習邏輯技師"];
+  const wrongs=S.answers.filter(r=>!r.firstTry);
+
+  const adviceMap={
+    "基本概念":`<div class="advice"><b>基本概念</b>還不夠穩：回到 <a href="./學習歷程_基本邏輯電路.html">學習歷程網頁</a> 的「基本概念」節點，重讀「數位電路與正邏輯」「布林代數的角色」，並翻閱教材 PDF 對應頁面。</div>`,
+    "邏輯閘原理":`<div class="advice"><b>邏輯閘原理</b>需要加強：拿一張紙，把 NOT／AND／OR／NAND／NOR／XOR／XNOR 七種閘的<b>真值表各默寫一次</b>，再用 <a href="./基本邏輯電路_線上複習測驗.html">線上複習測驗</a> 第 3～12 題自我檢核。</div>`,
+    "專有名詞":`<div class="advice"><b>專有名詞</b>記憶模糊：開啟 <a href="../專有名詞索引.html">專有名詞索引</a>，優先複習「邏輯閘」「布林代數」「TTL 數位 IC」三份深度報告的第一頁定義卡。</div>`,
+    "數位IC":`<div class="advice"><b>數位 IC</b>相關題目失分：背熟常用編號（7400 NAND、7402 NOR、7404 NOT、7408 AND、7432 OR、7486 XOR），並複習 TTL 工作電壓 +5V 與 SN54／SN74 差異。</div>`,
+    "汽車應用":`<div class="advice"><b>汽車應用</b>連結不足：重讀課本「基本邏輯電路在汽車上的應用」——溢油切斷（AND）、開關自我診斷（OR）、安全帶警告（NOT）、換檔訊號（OR＋AND），想一想每個例子「為什麼」用那個閘。</div>`,
+    "綜合挑戰":`<div class="advice"><b>綜合判斷</b>再磨練：練習「由特性反推是哪種閘」的題型，關鍵是抓住每種閘輸出為 0／1 的唯一條件。</div>`};
+  let advHtml="";
+  AREAS.forEach(a=>{const st=stat[a];
+    if(st.total>0 && st.first/st.total<0.8) advHtml+=adviceMap[a];});
+  if(timeout){
+    const undone=STATIONS.filter((_,i)=>i>=S.stationIdx).map(s=>s.name).join("、");
+    if(undone) advHtml=`<div class="advice">⏰ 時間內尚未完成：<b>${undone}</b>。建議先複習對應章節，再重新挑戰一次完成全部關卡。</div>`+advHtml;
+  }
+  if(!advHtml) advHtml=`<div class="advice">🎯 各領域第一次答對率都在 80% 以上，基礎非常紮實，直接進入進階挑戰吧！</div>`;
+
+  const nexts=[
+    "挑戰完整的 <a href='./基本邏輯電路_線上複習測驗.html'>50 題線上學習評量</a>，特別是 ★進階鑑別題（笛摩根定理、NAND 當反相器、TTL 電壓準位）。",
+    "學習<b>布林代數化簡</b>與<b>笛摩根定理</b>，再進階到卡諾圖（K-map）——參考「布林代數參考資料」資料夾。",
+    "延伸閱讀：<b>CAN bus</b> 與 <b>車身電腦模組 BCM</b> 深度報告，了解邏輯電路如何組成整車網路。",
+    "動手做：用 EDISON 模擬軟體把七種邏輯閘實際接一次，觀察真值表。"];
+  const nextHtml=nexts.map((n,i)=>`<div class="nextstep"><span class="n">${i+1}</span><span>${n}</span></div>`).join("");
+
+  const wrongHtml = wrongs.length===0 ? `<p style="color:var(--ok);font-weight:700">👏 全部題目都一次答對，沒有需要訂正的題目！</p>`
+    : wrongs.map(w=>`<div class="wrongitem"><b>【${w.area}】</b>${w.stem}<div class="we">💡 ${w.exp}</div></div>`).join("");
+
+  const rate=totalItems?Math.round(100*firstAll/totalItems):0;
+  $("screen-report").innerHTML=`
+  <div class="report-hero">
+    <h1>📋 ${S.name} 的學習歷程分析報告</h1>
+    <div class="medal">${medal[0]}</div>
+    <div class="big">${score} 分</div>
+    <div>${medal[1]}　${timeout?"⏰ 時間到，挑戰結束":"🎉 成功破關，尋獲寶藏「數位邏輯大師徽章」！"}</div>
+    <div class="meta">主題：基本邏輯電路（第 8 章）｜用時 ${mm} 分 ${ss} 秒｜完成 ${totalItems}／${EXPECTED_ITEMS} 項挑戰｜一次答對率 ${rate}%｜${new Date().toLocaleDateString("zh-TW")}</div>
+  </div>
+  <div class="rwrap">
+    <div class="rcard"><h2>📊 各領域表現（第一次答對率）</h2>${buildBars(stat)}
+      <p style="font-size:.82rem;color:var(--mut);margin-top:8px">藍色＝精熟（≥80%）　橘色＝尚可（60–79%）　紅色＝待加強（&lt;60%）</p></div>
+    <div class="rcard"><h2>📝 需要訂正的題目（第一次沒答對）</h2>${wrongHtml}</div>
+    <div class="rcard"><h2>🎯 給你的學習建議</h2>${advHtml}</div>
+    <div class="rcard"><h2>🚀 下一步學習路線</h2>${nextHtml}</div>
+    <div class="report-actions">
+      <button class="btn-blue" onclick="window.print()">🖨️ 列印／存成 PDF</button>
+      <button class="btn-ghost" onclick="backToHome()">🏠 回到首頁</button>
+      <button class="btn-main" onclick="restartFromReport()">🔄 再玩一次</button>
+    </div>
+    <p style="text-align:center;font-size:.82rem;color:var(--mut)">此報告已存於本機，之後打開網頁按「查看學習報告」即可回顧。</p>
+  </div>`;
+  $("screen-report").classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+function backToHome(){
+  $("screen-report").classList.add("hidden");
+  $("screen-start").classList.remove("hidden");
+  init();
+}
+function restartFromReport(){
+  if(!confirm("重新挑戰會清除「"+S.name+"」上一次的紀錄，確定嗎？")) return;
+  clearSave(S.name); location.reload();
+}
+
+init();
+$("nameInput").addEventListener("keydown",e=>{if(e.key==="Enter")enter();});
+</script>
+</body>
+</html>
